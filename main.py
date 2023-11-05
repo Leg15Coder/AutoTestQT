@@ -22,7 +22,7 @@ class WindowsManager(object):
             Добавляет окна в иенеджер
         :param args:
         :param kwargs:
-        :return:
+        :return: None
         """
         for elem in args:
             elem.manager = self
@@ -36,51 +36,77 @@ class WindowsManager(object):
 
 
 class ResultWidget(QMainWindow):
+    """
+        Окно, которое показывает результаты тестирования
+    """
     def __init__(self, manage=None):
         self.manager = manage
         super().__init__()
         uic.loadUi('AutoTestQT/ui/result.ui', self)
         self.setGeometry(500, 500, 500, 500)
-        self.setWindowTitle("res")
+        self.setWindowTitle("Результаты тестирования")
         self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager.main))
 
     def reload(self, res: list):
+        """
+            Загружает данные тестирования в виджет
+        :param res: Массив битов, определяющий правильность выполнения заданий
+        :return: None
+        """
         count, total = len(res), sum(res)
         self.lcdNumber.display(total)
+        self.lcdNumber_2.display(count)
         self.progressBar.setValue(round(total * 100 / count))
 
 
 class Widget(QMainWindow, QScrollArea):
+    """
+        Окно с тестом
+    """
     def __init__(self, manage=None):
         self.manager = manage
         super().__init__()
 
+        # Параметры окна
         self.setGeometry(500, 500, 500, 500)
-        self.setWindowTitle("test")
+        self.setWindowTitle("Проверочная работа")
 
+        # Инициализация элементов интерфейса
         self.layout = QVBoxLayout(self)
         self.scroll = QScrollArea(self)
         self.widget = QWidget()
+        self.main_label = QLabel(self)
+        self.pushButton = QPushButton(self)
 
+        # Форматирование отображения
         self.widget.setLayout(self.layout)
-
         self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setWidgetResizable(True)
         self.scroll.setWidget(self.widget)
         self.setCentralWidget(self.scroll)
-        self.main_label = QLabel(self)
+
+        # Настройки загаловка
         self.layout.addWidget(self.main_label)
         self.main_label.setText("test")
         self.main_label.move(100, 0)
-        self.pushButton = QPushButton(self)
+
+        # Настройки кнопки
         self.pushButton.move(350, 45)
         self.layout.addWidget(self.pushButton)
         self.pushButton.setText("Завершить")
         self.pushButton.clicked.connect(self.finish)
+
+        # Переменная для сохранения остальных элементов UI, добавляемых позже
         self.block = list()
 
     def make_radio_block(self, texts: list, k: int):
+        """
+            Создаёт тестовый вопрос с одним правильным вариантом ответа
+        :param texts: Данные для составления вопроса
+        :param k: коэффициент отступа
+        :return: None
+        """
         group = QButtonGroup(self)
         label = QLabel(self)
         self.layout.addWidget(label)
@@ -96,6 +122,12 @@ class Widget(QMainWindow, QScrollArea):
         self.block.append({'group': group, 'label': label, 'radios': radios})
 
     def make_checkbox_block(self, texts: list, k: int):
+        """
+            Создаёт тестовый вопрос с несколькими правильными вариантами ответа
+        :param texts: Данные для составления вопроса
+        :param k: коэффициент отступа
+        :return: None
+        """
         group = QButtonGroup(self)
         label = QLabel(self)
         self.layout.addWidget(label)
@@ -111,6 +143,12 @@ class Widget(QMainWindow, QScrollArea):
         self.block.append({'group': group, 'label': label, 'checkboxes': checkboxes})
 
     def make_text_block(self, texts: list, k: int):
+        """
+            Создаёт вопрос с открытым вводом ответа
+        :param texts: Данные для составления вопроса
+        :param k: коэффициент отступа
+        :return: None
+        """
         label = QLabel(self)
         self.layout.addWidget(label)
         label.setText(str(texts[0]))
@@ -121,6 +159,14 @@ class Widget(QMainWindow, QScrollArea):
         self.block.append({'label': label, 'text': text_input})
 
     def add(self, task: str, data: list, corr: list, k: int):
+        """
+            По сырым данным формирует базу правильных ответов и подготавливает UI вопроса
+        :param task: Тип задания
+        :param data: Данные для составления вопросов
+        :param corr: Данные для проверки ответов
+        :param k: коэффициент отступа
+        :return: None
+        """
         if task in ('numsenter', 'textenter'):
             self.make_text_block(data, k)
         elif task == 'radios':
@@ -130,6 +176,10 @@ class Widget(QMainWindow, QScrollArea):
         self.block[-1]['corr'] = corr
 
     def finish(self):
+        """
+            Завершает задание и отправдяет его на проверку
+        :return: None
+        """
         res = list()
         for elem in self.block:
             if 'text' in elem:
@@ -158,6 +208,9 @@ class Widget(QMainWindow, QScrollArea):
 
 
 class StartWidget(QMainWindow):
+    """
+        Окно для выбора темы и начала проверочной работы
+    """
     def __init__(self, manage=None):
         self.manager = manage
         super().__init__()
@@ -168,7 +221,12 @@ class StartWidget(QMainWindow):
         self.setupUi()
 
     def setupUi(self):
+        """
+            Связывает БД и UI
+        :return: None
+        """
         lessons = list(set(fetch("SELECT lesson FROM lessons", self.cur)))
+        self.setWindowTitle("Создать вариант")
         self.comboBox.addItems(lessons)
         self.comboBox.currentTextChanged.connect(self.text_changed)
         self.pushButton.clicked.connect(self.create_test)
@@ -178,6 +236,10 @@ class StartWidget(QMainWindow):
         self.lesson = s
 
     def create_test(self):
+        """
+            Создаёт проверочную работу
+        :return: Bool (успешно ли создана работа)
+        """
         num_of_tasks = self.spinBox.value()
         if self.lesson is not None:
             lesson = self.lesson
@@ -212,9 +274,13 @@ class StartWidget(QMainWindow):
                         bools[-1] = bool(elem[1])
             widget.add(type_of_task, data, bools, _)
         widget.show()
+        return True
 
 
 class SettingWidget(QMainWindow):
+    """
+        Окно общих настроек
+    """
     def __init__(self, manage=None):
         self.manager = manage
         super().__init__()
@@ -228,16 +294,23 @@ class SettingWidget(QMainWindow):
 
 
 class AddTaskWidget(QMainWindow):
+    """
+        Окно для добавления заданий в БД
+    """
     def __init__(self, manage=None):
         self.manager = manage
         super().__init__()
         uic.loadUi('AutoTestQT/ui/add_task.ui', self)
-        self.type = 'textenter'
+        self.type = 'radios'
         self.setupUi()
 
     def setupUi(self):
+        """
+            Связывает БД и UI
+        :return: None
+        """
         elements = ['radios', 'checkboxes', 'numsenter', 'textenter']
-        self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager.main))
+        self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager['setting']))
         self.pushButton.clicked.connect(self.create_task)
         self.comboBox.addItems(elements)
         self.comboBox.currentTextChanged.connect(self.text_changed)
@@ -246,6 +319,10 @@ class AddTaskWidget(QMainWindow):
         self.type = s
 
     def create_task(self):
+        """
+            Добавляет задание в БД и выводит его ID а экран
+        :return: None
+        """
         db = sql.connect("AutoTestQT/db.sqlite")
         cur = db.cursor()
         lesson = str(self.lineEdit.text())
@@ -258,6 +335,9 @@ class AddTaskWidget(QMainWindow):
 
 
 class AddAnswerWidget(QMainWindow):
+    """
+        Окно для добавления возможных ответов к заданию по его ID в БД
+    """
     def __init__(self, manage=None):
         self.manager = manage
         super().__init__()
@@ -268,11 +348,19 @@ class AddAnswerWidget(QMainWindow):
         self.setupUi()
 
     def setupUi(self):
-        self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager.main))
+        """
+            Связывает БД и UI
+        :return: None
+        """
+        self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager['setting']))
         self.confirmButton.clicked.connect(self.create_answer)
         self.pushButton.clicked.connect(self.find_task)
 
     def find_task(self):
+        """
+            Ищет задание в БД по ID
+        :return: str (текст задания)
+        """
         ids = self.lineEdit.text()
         task = fetch(f"SELECT task FROM lessons WHERE id={ids}", self.cur)
         if not task:
@@ -280,8 +368,13 @@ class AddAnswerWidget(QMainWindow):
         else:
             self.label.setText(task[0])
             self.id = ids
+        return task[0] if not task else str()
 
     def create_answer(self):
+        """
+            Записывает возможный ответ к заданию в БД
+        :return: None
+        """
         text = self.textEdit.toPlainText()
         corr = self.checkBox.checkState()
         self.cur.execute("INSERT INTO answers(task, answer, correctness) VALUES (?, ?, ?)", (self.id, text, corr))
@@ -289,6 +382,9 @@ class AddAnswerWidget(QMainWindow):
 
 
 class MainWidget(QMainWindow):
+    """
+        Окно с основным меню, стартовое окно и объект для хранения информации о текущем отображении на экране
+    """
     def __init__(self, manage=None):
         self.manager = manage
         self.showing_window = self
@@ -297,11 +393,20 @@ class MainWidget(QMainWindow):
         self.setupUi()
 
     def setupUi(self):
+        """
+            Связывает БД и UI
+        :return: None
+        """
         self.exit_button.clicked.connect(QCoreApplication.quit)
         self.start_buttob.clicked.connect(lambda: self.toggle_window(self.manager['start']))
         self.settings_button.clicked.connect(lambda: self.toggle_window(self.manager['setting']))
 
     def toggle_window(self, window=None):
+        """
+            Переключает окна
+        :param window: Окно, которое нужно отобразить
+        :return: None
+        """
         if window is None:
             self.show()
         else:

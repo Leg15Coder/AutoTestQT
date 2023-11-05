@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>559</width>
-    <height>364</height>
+    <height>441</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <property name="geometry">
      <rect>
       <x>190</x>
-      <y>240</y>
+      <y>340</y>
       <width>151</width>
       <height>51</height>
      </rect>
@@ -37,7 +37,7 @@
     <property name="geometry">
      <rect>
       <x>260</x>
-      <y>20</y>
+      <y>120</y>
       <width>201</width>
       <height>91</height>
      </rect>
@@ -47,7 +47,7 @@
     <property name="geometry">
      <rect>
       <x>260</x>
-      <y>120</y>
+      <y>220</y>
       <width>191</width>
       <height>71</height>
      </rect>
@@ -60,7 +60,7 @@
     <property name="geometry">
      <rect>
       <x>34</x>
-      <y>15</y>
+      <y>115</y>
       <width>201</width>
       <height>101</height>
      </rect>
@@ -78,7 +78,7 @@
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>120</y>
+      <y>220</y>
       <width>211</width>
       <height>71</height>
      </rect>
@@ -90,6 +90,34 @@
     </property>
     <property name="text">
      <string>Процент выполненной работы</string>
+    </property>
+   </widget>
+   <widget class="QLCDNumber" name="lcdNumber_2">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>10</y>
+      <width>201</width>
+      <height>91</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>10</y>
+      <width>201</width>
+      <height>101</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Всего заданий</string>
     </property>
    </widget>
   </widget>
