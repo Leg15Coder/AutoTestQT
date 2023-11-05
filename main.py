@@ -39,32 +39,31 @@ class Widget(QMainWindow, QScrollArea):
     def __init__(self, manage=None):
         self.manager = manage
         super().__init__()
-        self.setupUi()
 
-    def setupUi(self):
-        try:
-            self.setGeometry(500, 500, 500, 500)
-            self.setWindowTitle("test")
+        self.setGeometry(500, 500, 500, 500)
+        self.setWindowTitle("test")
 
-            self.layout = QVBoxLayout(self)
-            self.scroll = QScrollArea(self)
-            self.widget = QWidget()
+        self.layout = QVBoxLayout(self)
+        self.scroll = QScrollArea(self)
+        self.widget = QWidget()
 
-            self.widget.setLayout(self.layout)
+        self.widget.setLayout(self.layout)
 
-            self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-            self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            self.scroll.setWidgetResizable(True)
-            self.scroll.setWidget(self.widget)
-            self.setCentralWidget(self.scroll)
-
-            self.main_label = QLabel(self)
-            self.layout.addWidget(self.main_label)
-            self.main_label.setText("test")
-            self.main_label.move(100, 0)
-            self.block = list()
-        except Exception as ex:
-            print(ex)
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setWidget(self.widget)
+        self.setCentralWidget(self.scroll)
+        self.main_label = QLabel(self)
+        self.layout.addWidget(self.main_label)
+        self.main_label.setText("test")
+        self.main_label.move(100, 0)
+        self.pushButton = QPushButton(self)
+        self.pushButton.move(350, 45)
+        self.layout.addWidget(self.pushButton)
+        self.pushButton.setText("Завершить")
+        self.pushButton.clicked.connect(self.finish)
+        self.block = list()
 
     def make_radio_block(self, texts: list, k: int):
         group = QButtonGroup(self)
@@ -81,7 +80,7 @@ class Widget(QMainWindow, QScrollArea):
             radios[n].move(100, 50 + 250 * k + 25 * (n + 1))
         self.block.append({'group': group, 'label': label, 'radios': radios})
 
-    def make_checkbox_block(self):
+    def make_checkbox_block(self, texts: list, k: int):
         group = QButtonGroup(self)
         label = QLabel(self)
         self.layout.addWidget(label)
@@ -95,6 +94,46 @@ class Widget(QMainWindow, QScrollArea):
             checkboxes[n].setText(str(texts[n + 1]))
             checkboxes[n].move(100, 50 + 250 * k + 25 * (n + 1))
         self.block.append({'group': group, 'label': label, 'checkboxes': checkboxes})
+
+    def make_text_block(self, texts: list, k: int):
+        label = QLabel(self)
+        self.layout.addWidget(label)
+        label.setText(str(texts[0]))
+        label.move(100, 50 + 250 * k)
+        text_input = QTextEdit(self)
+        self.layout.addWidget(text_input)
+        text_input.move(100, 80 + 250 * k)
+        self.block.append({'label': label, 'text': text_input})
+
+    def add(self, task: str, data: list, corr: list, k: int):
+        if task in ('numsenter', 'textenter'):
+            self.make_text_block(data, k)
+        elif task == 'radios':
+            self.make_radio_block(data, k)
+        else:
+            self.make_checkbox_block(data, k)
+        self.block[-1]['corr'] = corr
+
+    def finish(self):
+        res = list()
+        for elem in self.block:
+            if 'text' in elem:
+                answ = elem['text'].toPlainText()
+                res.append(answ.strip() in elem['corr'])
+            elif 'checkboxes' in elem:
+                flag = False
+                for i in range(5):
+                    if elem['checkboxes'][i].checkState() != elem['corr'][i]:
+                        flag = True
+                        break
+                res.append(not flag)
+            elif 'radios' in elem:
+                flag = False
+                for i in range(5):
+                    if elem['radios'][i].isChecked() != elem['corr'][i]:
+                        flag = True
+                        break
+                res.append(not flag)
 
 
 class StartWidget(QMainWindow):
@@ -125,16 +164,29 @@ class StartWidget(QMainWindow):
             return False
         tasks = fetch(f"SELECT task FROM lessons WHERE lesson='{lesson}'", self.cur)
         ids = fetch(f"SELECT id FROM lessons WHERE lesson='{lesson}'", self.cur)
-        data = list(zip(ids, tasks))
+        tasks = list(zip(ids, tasks))
         widget = Widget()
         self.manager.add_window(widget)
         for _ in range(num_of_tasks):
-            task = choice(data)
-            answers = fetch(f"SELECT answer, correctness FROM answers WHERE task='{task[0]}'", self.cur)
-            radios = [task[1]]
-            for __ in range(5):
-                radios.append(choice(answers))
-            widget.make_radio_block(radios, _)
+            task = choice(tasks)
+            type_of_task = fetch(f"SELECT type FROM lessons WHERE id={task[0]}", self.cur)[0]
+            answers = fetch(f"SELECT answer FROM answers WHERE task='{task[0]}'", self.cur)
+            correctnesses = fetch(f"SELECT correctness FROM answers WHERE task='{task[0]}'", self.cur)
+            answers = list(zip(answers, correctnesses))
+            if type_of_task in ('numsenter', 'textenter'):
+                data = task[1] + \
+                       fetch(f"SELECT answer FROM answers WHERE task='{task[0]}' and correctness!=0", self.cur)
+            else:
+                data, bools = [task[1]], list()
+                for __ in range(5):
+                    elem = choice(answers)
+                    data.append(elem[0])
+                    bools.append(bool(elem[1]))
+                while type_of_task == 'radios' and sum(bools) == 1 or any(bools) and type_of_task == 'checkboxes':
+                    elem = choice(answers)
+                    data[-1] = elem[0]
+                    bools[-1] = bool(elem[1])
+            widget.add(type_of_task, data, bools, _)
         widget.show()
 
 
