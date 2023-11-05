@@ -35,6 +35,21 @@ class WindowsManager(object):
         return self.named_windows[key]
 
 
+class ResultWidget(QMainWindow):
+    def __init__(self, manage=None):
+        self.manager = manage
+        super().__init__()
+        uic.loadUi('AutoTestQT/ui/result.ui', self)
+        self.setGeometry(500, 500, 500, 500)
+        self.setWindowTitle("res")
+        self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager.main))
+
+    def reload(self, res: list):
+        count, total = len(res), sum(res)
+        self.lcdNumber.display(total)
+        self.progressBar.setValue(round(total * 100 / count))
+
+
 class Widget(QMainWindow, QScrollArea):
     def __init__(self, manage=None):
         self.manager = manage
@@ -134,6 +149,12 @@ class Widget(QMainWindow, QScrollArea):
                         flag = True
                         break
                 res.append(not flag)
+        result = ResultWidget(self.manager)
+        result.reload(res)
+        manager.add_window(result)
+        self.manager.main.toggle_window(result)
+        self.hide()
+        del self
 
 
 class StartWidget(QMainWindow):
@@ -173,19 +194,22 @@ class StartWidget(QMainWindow):
             answers = fetch(f"SELECT answer FROM answers WHERE task='{task[0]}'", self.cur)
             correctnesses = fetch(f"SELECT correctness FROM answers WHERE task='{task[0]}'", self.cur)
             answers = list(zip(answers, correctnesses))
+            data, bools = [task[1]], list()
             if type_of_task in ('numsenter', 'textenter'):
-                data = task[1] + \
-                       fetch(f"SELECT answer FROM answers WHERE task='{task[0]}' and correctness!=0", self.cur)
+                data += fetch(f"SELECT answer FROM answers WHERE task='{task[0]}' and correctness!=0", self.cur)
             else:
-                data, bools = [task[1]], list()
-                for __ in range(5):
+                while len(data) < 6:
                     elem = choice(answers)
-                    data.append(elem[0])
-                    bools.append(bool(elem[1]))
-                while type_of_task == 'radios' and sum(bools) == 1 or any(bools) and type_of_task == 'checkboxes':
+                    if elem[0] not in data:
+                        data.append(elem[0])
+                        bools.append(bool(elem[1]))
+                while True:
+                    if type_of_task == 'radios' and sum(bools) == 1 or any(bools) and type_of_task == 'checkboxes':
+                        break
                     elem = choice(answers)
-                    data[-1] = elem[0]
-                    bools[-1] = bool(elem[1])
+                    if elem[0] not in data:
+                        data[-1] = elem[0]
+                        bools[-1] = bool(elem[1])
             widget.add(type_of_task, data, bools, _)
         widget.show()
 

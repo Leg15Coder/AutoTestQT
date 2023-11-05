@@ -140,7 +140,7 @@
      </font>
     </property>
     <property name="text">
-     <string>Выберите тип зпдпния</string>
+     <string>Выберите тип задания</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
