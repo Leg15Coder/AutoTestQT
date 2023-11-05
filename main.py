@@ -7,7 +7,10 @@ from random import *
 import sys
 
 
-class WindowsManager:
+class WindowsManager(object):
+    """
+        Менеджер окон - объект для быстрого переключения и взаимодействия между окнами в приложении
+    """
     def __init__(self, main: QMainWindow):
         self.main = main
         self.main.manager = self
@@ -15,6 +18,12 @@ class WindowsManager:
         self.named_windows = dict()
 
     def add_window(self, *args, **kwargs):
+        """
+            Добавляет окна в иенеджер
+        :param args:
+        :param kwargs:
+        :return:
+        """
         for elem in args:
             elem.manager = self
             self.tests.append(elem)
@@ -72,6 +81,21 @@ class Widget(QMainWindow, QScrollArea):
             radios[n].move(100, 50 + 250 * k + 25 * (n + 1))
         self.block.append({'group': group, 'label': label, 'radios': radios})
 
+    def make_checkbox_block(self):
+        group = QButtonGroup(self)
+        label = QLabel(self)
+        self.layout.addWidget(label)
+        label.setText(str(texts[0]))
+        label.move(100, 50 + 250 * k)
+        checkboxes = list()
+        for n in range(5):
+            checkboxes.append(QCheckBox(self))
+            self.layout.addWidget(checkboxes[n])
+            group.addButton(checkboxes[n])
+            checkboxes[n].setText(str(texts[n + 1]))
+            checkboxes[n].move(100, 50 + 250 * k + 25 * (n + 1))
+        self.block.append({'group': group, 'label': label, 'checkboxes': checkboxes})
+
 
 class StartWidget(QMainWindow):
     def __init__(self, manage=None):
@@ -84,7 +108,7 @@ class StartWidget(QMainWindow):
         self.setupUi()
 
     def setupUi(self):
-        lessons = fetch("SELECT lesson FROM lessons", self.cur)
+        lessons = list(set(fetch("SELECT lesson FROM lessons", self.cur)))
         self.comboBox.addItems(lessons)
         self.comboBox.currentTextChanged.connect(self.text_changed)
         self.pushButton.clicked.connect(self.create_test)
@@ -123,11 +147,69 @@ class SettingWidget(QMainWindow):
 
     def setupUi(self):
         self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager.main))
-        self.addTask.clicked.connect(lambda: self.toggle_widget())
-        self.addAnswer.clicked.connect(lambda: self.toggle_widget())
+        self.addTask.clicked.connect(lambda: self.manager.main.toggle_window(self.manager["add_task"]))
+        self.addAnswer.clicked.connect(lambda: self.manager.main.toggle_window(self.manager["add_answer"]))
 
-    def toggle_widget(self):
-        pass
+
+class AddTaskWidget(QMainWindow):
+    def __init__(self, manage=None):
+        self.manager = manage
+        super().__init__()
+        uic.loadUi('AutoTestQT/ui/add_task.ui', self)
+        self.type = 'textenter'
+        self.setupUi()
+
+    def setupUi(self):
+        elements = ['radios', 'checkboxes', 'numsenter', 'textenter']
+        self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager.main))
+        self.pushButton.clicked.connect(self.create_task)
+        self.comboBox.addItems(elements)
+        self.comboBox.currentTextChanged.connect(self.text_changed)
+
+    def text_changed(self, s):
+        self.type = s
+
+    def create_task(self):
+        db = sql.connect("AutoTestQT/db.sqlite")
+        cur = db.cursor()
+        lesson = str(self.lineEdit.text())
+        task = str(self.textEdit.toPlainText())
+        ids = max(fetch("SELECT id FROM lessons", cur)) + 1
+        cur.execute(f'INSERT INTO lessons (lesson, task, type, id) VALUES (?, ?, ?, ?)', (lesson, task, self.type, ids))
+        self.lcd.display(ids)
+        db.commit()
+        db.close()
+
+
+class AddAnswerWidget(QMainWindow):
+    def __init__(self, manage=None):
+        self.manager = manage
+        super().__init__()
+        uic.loadUi('AutoTestQT/ui/add_answer.ui', self)
+        self.db = sql.connect("AutoTestQT/db.sqlite")
+        self.cur = self.db.cursor()
+        self.id = 0
+        self.setupUi()
+
+    def setupUi(self):
+        self.back_button.clicked.connect(lambda: self.manager.main.toggle_window(self.manager.main))
+        self.confirmButton.clicked.connect(self.create_answer)
+        self.pushButton.clicked.connect(self.find_task)
+
+    def find_task(self):
+        ids = self.lineEdit.text()
+        task = fetch(f"SELECT task FROM lessons WHERE id={ids}", self.cur)
+        if not task:
+            self.label.setText("Ничего не найдено")
+        else:
+            self.label.setText(task[0])
+            self.id = ids
+
+    def create_answer(self):
+        text = self.textEdit.toPlainText()
+        corr = self.checkBox.checkState()
+        self.cur.execute("INSERT INTO answers(task, answer, correctness) VALUES (?, ?, ?)", (self.id, text, corr))
+        self.db.commit()
 
 
 class MainWidget(QMainWindow):
@@ -159,7 +241,10 @@ if __name__ == '__main__':
     try:
         app = QApplication(sys.argv)
         manager = WindowsManager(MainWidget())
-        manager.add_window(start=StartWidget(manager), setting=SettingWidget(manager))
+        manager.add_window(
+            start=StartWidget(manager), setting=SettingWidget(manager), add_task=AddTaskWidget(manager),
+            add_answer=AddAnswerWidget(manager)
+        )
         ex = manager.main
         ex.show()
         sys.exit(app.exec_())
