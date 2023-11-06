@@ -173,7 +173,7 @@ class Widget(QMainWindow, QScrollArea):
             self.make_radio_block(data, k)
         else:
             self.make_checkbox_block(data, k)
-        self.block[-1]['corr'] = corr
+        self.block[-1]['corr'] = list(map(str, corr))
 
     def finish(self):
         """
@@ -215,7 +215,7 @@ class StartWidget(QMainWindow):
         self.manager = manage
         super().__init__()
         uic.loadUi('AutoTestQT/ui/start.ui', self)
-        self.lesson = 'turtle'
+        self.lesson = 'СС'
         db = sql.connect("AutoTestQT/db.sqlite")
         self.cur = db.cursor()
         self.setupUi()
@@ -258,7 +258,7 @@ class StartWidget(QMainWindow):
             answers = list(zip(answers, correctnesses))
             data, bools = [task[1]], list()
             if type_of_task in ('numsenter', 'textenter'):
-                data += fetch(f"SELECT answer FROM answers WHERE task='{task[0]}' and correctness!=0", self.cur)
+                bools += fetch(f"SELECT answer FROM answers WHERE task='{task[0]}' and correctness!=0", self.cur)
             else:
                 while len(data) < 6:
                     elem = choice(answers)
